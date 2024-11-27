@@ -1,17 +1,21 @@
-"use client";
-
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { NavigationItem } from "@/types/navigation";
-import { Move } from "lucide-react";
+import { Move, AlertCircle } from "lucide-react";
 import { NavigationForm } from "./NavigationForm";
 
 interface Props {
   item: NavigationItem;
-  onEdit: (item: NavigationItem, updatedData: Partial<NavigationItem>) => void;
-  onDelete: (id: string) => void;
-  onAddChild: (parentId: string, childItem: Partial<NavigationItem>) => void;
+  onEdit: (
+    item: NavigationItem,
+    updatedData: Partial<NavigationItem>
+  ) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onAddChild: (
+    parentId: string,
+    childItem: Partial<NavigationItem>
+  ) => Promise<void>;
   depth?: number;
 }
 
@@ -24,9 +28,20 @@ export const SortableItem = ({
 }: Props) => {
   const [showChildForm, setShowChildForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: item.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: item.id,
+    disabled: isLoading,
+  });
 
   const getIndentation = (level: number) => {
     if (level === 0) return 24;
@@ -37,16 +52,44 @@ export const SortableItem = ({
     transform: CSS.Transform.toString(transform),
     transition,
     paddingLeft: `${getIndentation(depth)}px`,
+    opacity: isDragging ? 0.5 : 1,
   };
 
-  const handleAddChild = (data: Partial<NavigationItem>) => {
-    onAddChild(item.id, data);
-    setShowChildForm(false);
+  const handleAddChild = async (data: Partial<NavigationItem>) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await onAddChild(item.id, data);
+      setShowChildForm(false);
+    } catch {
+      setError("Nie udało się dodać nowej pozycji menu");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleEdit = (data: Partial<NavigationItem>) => {
-    onEdit(item, data);
-    setIsEditing(false);
+  const handleEdit = async (data: Partial<NavigationItem>) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await onEdit(item, data);
+      setIsEditing(false);
+    } catch {
+      setError("Nie udało się zapisać zmian");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await onDelete(item.id);
+    } catch {
+      setError("Nie udało się usunąć pozycji menu");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -54,13 +97,20 @@ export const SortableItem = ({
       <div
         ref={setNodeRef}
         style={style}
-        className={`group flex items-center py-4  border-b border-[#EAECF0] rounded-t-lg last:border-b-0 ${
+        className={`group flex items-center border-b border-[#EAECF0] rounded-t-lg last:border-b-0 ${
           depth > 0 ? "bg-[#F9FAFB]" : "bg-white"
-        }`}
+        } ${isDragging ? "cursor-grabbing" : ""}`}
       >
-        <div className="flex flex-row w-full justify-between bg-white border-b-1 border-l-1 border-[#EAECF0] rounded-bl-lg">
+        <div className="flex flex-row py-[10px] w-full justify-between bg-white border-b-1 border-l-1 border-[#EAECF0] rounded-bl-lg">
           <div className="flex flex-1 min-w-0  items-center pl-4">
-            <div {...attributes} {...listeners} className="cursor-grab p-2.5">
+            <div
+              {...attributes}
+              {...listeners}
+              className={`cursor-grab p-2.5 ${
+                isLoading ? "cursor-not-allowed opacity-50" : ""
+              }`}
+              aria-label="Przeciągnij, aby zmienić kolejność"
+            >
               <Move className="w-[16.67px] h-[16.67px] text-[#475467]" />
             </div>
             <div className="flex items-center min-w-0 flex-1">
@@ -76,26 +126,36 @@ export const SortableItem = ({
           </div>
           <div className="inline-flex rounded-lg border border-gray-300 mr-4 bg-white shadow-[0_1px_2px_0px_rgba(16,24,40,0.05)]">
             <button
-              onClick={() => onDelete(item.id)}
-              className="px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-gray-50 focus:outline-none focus:z-10 first:rounded-l-lg border-r border-gray-300"
+              onClick={handleDelete}
+              className="px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-gray-50 focus:outline-none focus:z-10 first:rounded-l-lg border-r border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Usuń
+              {isLoading ? "Usuwanie..." : "Usuń"}
             </button>
             <button
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-gray-50 focus:outline-none focus:z-10 border-r border-gray-300"
+              className="px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-gray-50 focus:outline-none focus:z-10 border-r border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Edytuj
             </button>
             <button
               onClick={() => setShowChildForm(true)}
-              className="px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-gray-50 focus:outline-none focus:z-10 last:rounded-r-lg"
+              className="px-4 py-2 text-sm font-semibold text-[#344054] hover:bg-gray-50 focus:outline-none focus:z-10 last:rounded-r-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Dodaj pozycję menu
             </button>
           </div>
         </div>
       </div>
+
+      {error && (
+        <div
+          className="bg-red-50 p-4 flex items-center gap-2 text-red-700 text-sm"
+          role="alert"
+        >
+          <AlertCircle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
 
       {isEditing && (
         <div
@@ -121,6 +181,7 @@ export const SortableItem = ({
             onSubmit={handleAddChild}
             onCancel={() => setShowChildForm(false)}
             isInline={true}
+            isFirst={true}
           />
         </div>
       )}

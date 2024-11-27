@@ -68,6 +68,7 @@ const NavigationManager = () => {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+
     if (!over || active.id === over.id) return;
 
     setItems((items) => {
@@ -109,17 +110,17 @@ const NavigationManager = () => {
       id: uuidv4(),
       label: data.label!,
       url: data.url,
-      children: data.children || [],
+      children: [],
     };
 
     setItems((prevItems) => [...prevItems, newItem]);
     setShowAddForm(false);
   };
 
-  const handleEditItem = (
+  const handleEditItem = async (
     item: NavigationItem,
     updatedData: Partial<NavigationItem>
-  ) => {
+  ): Promise<void> => {
     setItems((prevItems) => {
       const updateItemInTree = (items: NavigationItem[]): NavigationItem[] => {
         return items.map((currentItem) => {
@@ -146,32 +147,35 @@ const NavigationManager = () => {
   const handleAddChild = (
     parentId: string,
     childData: Partial<NavigationItem>
-  ) => {
-    const newChild: NavigationItem = {
-      id: uuidv4(),
-      label: childData.label!,
-      url: childData.url,
-      children: [],
-    };
+  ): Promise<void> => {
+    return new Promise((resolve) => {
+      const newChild: NavigationItem = {
+        id: uuidv4(),
+        label: childData.label!,
+        url: childData.url,
+        children: [],
+      };
 
-    setItems((prevItems) =>
-      prevItems.map((item) => {
-        if (item.id === parentId) {
-          return {
-            ...item,
-            children: [...(item.children || []), newChild],
-          };
-        }
+      setItems((prevItems) =>
+        prevItems.map((item) => {
+          if (item.id === parentId) {
+            return {
+              ...item,
+              children: [...(item.children || []), newChild],
+            };
+          }
 
-        if (item.children?.length) {
-          return {
-            ...item,
-            children: updateChildren(item.children, parentId, newChild),
-          };
-        }
-        return item;
-      })
-    );
+          if (item.children?.length) {
+            return {
+              ...item,
+              children: updateChildren(item.children, parentId, newChild),
+            };
+          }
+          return item;
+        })
+      );
+      resolve();
+    });
   };
 
   const updateChildren = (
@@ -196,7 +200,7 @@ const NavigationManager = () => {
     });
   };
 
-  const handleDeleteItem = (itemId: string) => {
+  const handleDeleteItem = async (itemId: string): Promise<void> => {
     setItems((prevItems) => {
       const removeFromItems = (items: NavigationItem[]): NavigationItem[] => {
         return items.reduce((acc: NavigationItem[], item) => {
@@ -278,6 +282,7 @@ const NavigationManager = () => {
                           }}
                           onCancel={() => setShowAddForm(false)}
                           isInline={true}
+                          isFirst={true}
                         />
                       </div>
                       <div className="bg-[#F9FAFB] p-5 border-t border-[#D0D5DD] rounded-b-lg">
