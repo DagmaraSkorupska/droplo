@@ -54,11 +54,11 @@ export const SortableItem = ({
       <div
         ref={setNodeRef}
         style={style}
-        className={`group flex items-center border-b border-[#EAECF0] rounded-t-lg last:border-b-0 ${
+        className={`group flex items-center py-4  border-b border-[#EAECF0] rounded-t-lg last:border-b-0 ${
           depth > 0 ? "bg-[#F9FAFB]" : "bg-white"
         }`}
       >
-        <div className="flex flex-row py-[10px] w-full justify-between bg-white border-b-1 border-l-1 border-[#EAECF0] rounded-bl-lg">
+        <div className="flex flex-row w-full justify-between bg-white border-b-1 border-l-1 border-[#EAECF0] rounded-bl-lg">
           <div className="flex flex-1 min-w-0  items-center pl-4">
             <div {...attributes} {...listeners} className="cursor-grab p-2.5">
               <Move className="w-[16.67px] h-[16.67px] text-[#475467]" />
